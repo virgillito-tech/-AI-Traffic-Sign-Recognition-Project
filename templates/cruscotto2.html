@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    <meta charset="UTF-8">
+    <!-- Tag viewport per la visualizzazione-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Titolo Pagina Web -->
+    <title>Traffic Sign Recognition Dashboard</title>
+    <!-- Link per visualizzazione CSS Bootstrap, framework per facilitare lo sviluppo di interfacce utente responsive-->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"> 
+    <style>
+        /*CSS Fondo*/
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        /*CSS Contenitore Video*/
+        #video-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 60vh;
+            border: 2px solid #333;
+            background-color: #000;
+            margin: 20px;
+        }
+
+        /*CSS Segnali Rilevati*/
+        .sidebar {
+            background-color: #333;
+            color: white;
+            padding: 20px;
+            height: 100vh;
+            width: 450px;
+        }
+        .sidebar h3 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        #signals {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .signal-list {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .signal-item {
+            background: #444;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            transition: background-color 0.3s ease;
+        }
+        .signal-item:hover {
+            background-color: #555; 
+        }
+        .signal-item span {
+            font-size: 0.9em;
+            color: #ddd;
+        }
+        .main-container {
+            display: flex;
+            flex-direction: row;
+            height: 100vh;
+        }
+        footer {
+            text-align: center;
+            padding: 10px 0;
+            background: #333;
+            color: white;
+        }
+    </style> 
+</head>
+<body>
+    <header class="text-center py-3 bg-dark text-white">
+        <h1>Traffic Sign Recognition Dashboard</h1>
+         <!-- Bottone Caricamento Video-->
+     <div class="video_upload">
+        <!-- pulsanti personalizzati di Bootstrap  btn-primary -->
+        <label for="video-upload" class="btn btn-primary">Upload Video</label>
+        <input id="video-upload" type="file" accept="video/*" style="display: none;">
+    </div>
+    </header>
+
+<div class="main-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h3>Segnali Rilevati</h3>
+            <div id="signals"> <!-- Le immagini dei segnali verranno aggiunte qui --> </div>
+        </div>
+
+        <!-- Video Feed, contenitore video in streaming con src al backend-->
+        <div id="video-container">
+            <img id="video-stream" src="http://127.0.0.1:5001/video_feed" alt="Stream Video" style="width: 100%; height: auto;">
+        </div>
+    </div>
+
+    <!-- Script di Caricamento Video -->
+<script>
+        let isStreaming = false;  // Variabile per tracciare lo stato dello streaming
+        let isVideoLoaded = false; // Variabile per tracciare lo stato del video
+      
+        // Elementi HTML per interagire con il video
+        const videoUpload = document.getElementById("video-upload"); // Elemento input file per caricare il video
+        const videoStream = document.getElementById('video-stream'); // Elemento video per visualizzare lo stream
+        const signalsDiv = document.getElementById('signals'); // Contenitore dove verranno mostrati i segnali
+
+        // Gestione dell'upload del video
+        videoUpload.addEventListener("change", async (event) => {
+              const file = event.target.files[0]; // Recupera il primo file video selezionato
+              if (file) { // Se un file e' stato selezionato
+                  const formData = new FormData(); // Crea un oggetto FormData per inviare il video
+                  formData.append("video", file); // Aggiunge il video al FormData
+      
+                  // Invio del video al backend tramite una richiesta POST
+                  const response = await fetch("/upload_video", {
+                      method: "POST",
+                      body: formData,
+                  });
+                  if (response.ok) {
+                      console.log("Video caricato con successo!");
+                      // Forziamo il ricaricamento del video stream
+                      document.getElementById('video-stream').src = "/video_feed?" + new Date().getTime(); 
+                      isVideoLoaded = true;
+                  } else {
+                      console.error("Errore durante il caricamento del video.");
+                  }
+              }
+          });
+      
+document.addEventListener("DOMContentLoaded", () => { // quando il documento e' caricato
+    const socket = io('http://127.0.0.1:5001'); //connessione e comunicazione in tempo reale tramite WebSocket
+    const signalsDiv = document.getElementById('signals'); 
+    const uniqueSignals = new Set(); // Memorizza i segnali gia' visualizzati
+
+    // Funzione per aggiornare i segnali
+    function updateSignals(signals) {
+    signals.forEach(signal => {
+        // Crea un identificatore unico basato su classe e bounding box
+        const signalId = `${signal.class_name}_${signal.x1}_${signal.y1}_${signal.x2}_${signal.y2}`;
+
+        // Controlla se il segnale e' gia' stato mostrato
+        if (!uniqueSignals.has(signalId)) {
+            uniqueSignals.add(signalId); // Aggiungi l'identificatore al Set
+
+            // Crea un contenitore per il segnale (immagine + nome)
+            const signalContainer = document.createElement('div');
+            signalContainer.classList.add('signal-item');
+
+            // Crea l'elemento immagine per il segnale
+            const imgElement = document.createElement('img');
+            imgElement.src = `data:image/jpeg;base64,${signal.image}`;
+            imgElement.alt = `${signal.class_name} (${signal.confidence}%)`;
+            imgElement.style.width = "100px";
+            imgElement.style.margin = "5px";
+
+            // Crea l'elemento di testo con classe e nome del segnale
+            const textElement = document.createElement('p');
+            textElement.textContent = `${signal.class_id} - ${signal.class_name}`;
+            textElement.style.margin = "5px 0";
+            textElement.style.color = "#ddd";
+
+            // Aggiungi l'immagine al contenitore dei segnali
+            // Aggiungi immagine e testo al contenitore
+            signalContainer.appendChild(imgElement);
+            signalContainer.appendChild(textElement);
+
+            // Aggiungi il contenitore alla sidebar
+            signalsDiv.appendChild(signalContainer);
+        }
+    });
+}
+
+    // Gestione dei segnali ricevuti dal WebSocket
+    socket.on('signal_detected', (signals) => {
+        console.log("Segnali ricevuti:", signals);
+        updateSignals(signals);
+    });
+
+    socket.on('connect', () => console.log("Connesso al WebSocket"));
+    socket.on('disconnect', () => console.log("Disconnesso dal WebSocket"));
+});
+
+</script>
+
+<footer>
+    <p>&copy; 2024 Traffic Sign Recognition Project by Francesco Virgillito</p>
+</footer>
+
+</body>
+</html>

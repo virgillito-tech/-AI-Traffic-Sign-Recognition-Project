@@ -1,0 +1,28 @@
+
+Rechiamoci nella directory del progetto:
+cd /Users/francescovirgillito/projects/TESI
+
+Attiviamo l'ambiente virtuale:
+
+ source venv/bin/activate
+
+ conda activate pytorch_env
+
+Per disattivare: 
+
+conda deactivate
+
+Per avviare App:
+
+python /Users/francescovirgillito/projects/TESI/app.py
+
+
+app1: codice pyhton iniziale
+App2: codice python senza ridondanze
+App3: codice Python con GTSRB
+App4: codice con GTSRB e eliminazione duplicati. -----
+App5: resnet50 e GTSRB
+App6: codice python senza ridondanze e resnet50
+App7: codice python senza ridondanze, YoloV8 e resnet50 ------
+
+

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Tag viewport per la visualizzazione-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Titolo Pagina Web -->
+    <title>Traffic Sign Recognition Dashboard</title>
+    <!-- Link per visualizzazione CSS Bootstrap-->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"> 
+    <style>
+        /*CSS Fondo*/
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        /*CSS Contenitore Video*/
+        #video-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 60vh;
+            border: 2px solid #333;
+            background-color: #000;
+            margin: 20px;
+        }
+
+        /*CSS Segnali Rilevati*/
+        .sidebar {
+            background-color: #333;
+            color: white;
+            padding: 20px;
+            height: 100vh;
+            width: 450px;
+        }
+        .sidebar h3 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .signal-list {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .signal-item {
+            background: #444;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            transition: background-color 0.3s ease;
+        }
+        .signal-item:hover {
+            background-color: #555; 
+        }
+        .signal-item span {
+            font-size: 0.9em;
+            color: #ddd;
+        }
+        .main-container {
+            display: flex;
+            flex-direction: row;
+            height: 100vh;
+        }
+        footer {
+            text-align: center;
+            padding: 10px 0;
+            background: #333;
+            color: white;
+        }
+    </style> 
+</head>
+<body>
+    <header class="text-center py-3 bg-dark text-white">
+        <h1>Traffic Sign Recognition Dashboard</h1>
+         <!-- Bottone Caricamento Video-->
+     <div class="video_upload">
+        <!-- pulsanti personalizzati di Bootstrap  btn-primary -->
+        <label for="video-upload" class="btn btn-primary">Upload Video</label>
+        <input id="video-upload" type="file" accept="video/*" style="display: none;">
+    </div>
+    </header>
+
+<div class="main-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h3>Segnali Rilevati</h3>
+            <div id="signals"> <!-- Le immagini dei segnali verranno aggiunte qui --> </div>
+</div>
+
+        <!-- Video Feed -->
+        <div id="video-container">
+            <img id="video-stream" src="http://127.0.0.1:5001/video_feed" alt="Stream Video" style="width: 100%; height: auto;">
+        </div>
+    </div>
+
+    <!-- Script di Caricamento Video -->
+<script>
+  let isStreaming = false;  // Variabile per tracciare lo stato dello streaming
+  let isVideoLoaded = false; // Variabile per tracciare lo stato del video
+
+    //è l'input file in cui l'utente può selezionare il file video da caricare
+    const videoUpload = document.getElementById("video-upload"); // Elemento input file che seleziona il video
+    const videoStream = document.getElementById('video-stream'); // Elemento video che mostra il flusso video
+    const signalList = document.getElementById('signal-list'); // è il contenitore in cui verranno aggiunti dinamicamente i segnali stradali, chiamato signal-list
+
+ //rileva quando l'utente seleziona un file, change si attiva ogni volta che l'utente seleziona un nuovo file nel campo
+ // Utilizzo async/await per inviare la richiesta senza bloccare l'interfaccia utente
+ videoUpload.addEventListener("change", async (event) => {
+        const file = event.target.files[0]; //Recupera il primo file selezionato dall'utente
+        if (file) { // se l'utente ha selezionato un file
+            // utilizzato per inviare il video tramite una richiesta HTTP.
+            const formData = new FormData(); // Creaiamo un oggetto formData per inviare il video
+            formData.append("video", file); // Aggiungiamo il file video all'oggetto formData
+
+            // Invio del video al backend, fetch per inviare una richiesta HTTP al backend, ovvero alla funzione upload_video
+            const response = await fetch("/upload_video", {
+                method: "POST",
+                body: formData,
+            });
+            //risposta
+            if (response.ok) {
+                console.log("Video caricato con successo!");
+                // Aggiorniamo l'attributo src per forzare il caricamento del flusso video 
+                document.getElementById('video-stream').src = "/video_feed?" + new Date().getTime(); 
+                isVideoLoaded = true;
+            } else {
+                console.error("Errore durante il caricamento del video.");
+            }
+        }
+    });
+
+    // Assicurati che il flusso venga ripristinato quando premi "Start" dopo "Stop"
+    videoStream.addEventListener('load', () => {
+        if (isStreaming && currentSrc) {
+            videoStream.src = currentSrc; // Ripristina la sorgente se è attivo lo streaming
+        }
+    });
+
+// Funzione per ottenere i segnali rilevati
+async function getDetectedSignals() { 
+        try {
+            const response = await fetch("/process_video", { method: "POST" }); // Invia una richiesta POST a /process_video
+            if (response.ok) { // Se la  richiesta va a buon fine
+                const data = await response.json(); // Estraiamo i dati della risposta
+                const signalsDiv = document.getElementById('signals'); //recuperiamo il div con id signals
+                signalsDiv.innerHTML = ""; // Pulisci la lista dei segnali
+                data.signals_detected.forEach(signal => { // Per ogni segnale rilevato
+                    const imgElement = document.createElement('img'); // Creiamo un elemento immagine
+                    imgElement.src = `ritagli/${signal.class_name}_${signal.box[0]}_${signal.box[1]}.jpg`; //Impostiamo il percorso dell'immagine
+                    imgElement.alt = signal.class_name; // Impostiamo l'attributo alt che serve per la descrizione dell'immagine
+                    imgElement.style.width = "100px"; // Impostiamo una dimensione fissa
+                    signalsDiv.appendChild(imgElement); // Aggiungiamo l'immagine al div signals
+                });
+            } else {
+                console.log("Errore durante il recupero dei segnali");
+            }
+        } catch (error) {
+            console.error("Errore nella richiesta di segnali:", error);
+        }
+    }
+
+// Chiamata per ottenere segnali ogni 5 secondi durante lo streaming
+setInterval(getDetectedSignals, 5000);
+</script>
+
+<footer>
+    <p>&copy; 2024 Traffic Sign Recognition Project by Francesco Virgillito</p>
+</footer>
+
+</body>
+</html>
