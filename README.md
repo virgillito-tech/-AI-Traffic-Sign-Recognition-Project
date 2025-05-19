@@ -48,10 +48,11 @@ An **interactive web application is included, with video streaming to display de
    cd NOME_REPOSITORY
 
 2. Crea ed attiva un ambiente virtuale (consigliato):
+   ```bash
    python3 -m venv env
    source env/bin/activate
 
-3. Installa le dipendenze:
+4. Installa le dipendenze:
    ultralytics==8.0.20
    torch>=2.0.0
    torchvision>=0.15.0
@@ -65,6 +66,7 @@ An **interactive web application is included, with video streaming to display de
    matplotlib
 
 5. Esecuzione app:
+   ```bash
    python app.py
 
 
