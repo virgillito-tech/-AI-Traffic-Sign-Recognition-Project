@@ -22,7 +22,7 @@ The system uses:
 - 🧠 **ResNet50** for accurate classification  
 - 🗂️ **GTSRB** (German Traffic Sign Recognition Benchmark) as training dataset
 
-An **interactive web application is included, with video streaming to display detected signs in real-time.
+An interactive web application is included, with video streaming to display detected signs in real-time.
 
 ---
 
